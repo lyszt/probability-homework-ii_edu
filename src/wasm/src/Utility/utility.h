@@ -11,5 +11,10 @@ typedef struct pair_float {
     float second;
 } PairFloat;
 
+typedef struct pair_double {
+    double first;
+    double second;
+} PairDouble;
+
 
 #endif
