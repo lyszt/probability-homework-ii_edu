@@ -19,21 +19,22 @@ interface PopulationExports {
 const loadWasm = async () =>
   (await init()).exports as unknown as PopulationExports;
 
-type Field = { id: string; label: string };
+type Field = { id: string; label: string; intervalOnly?: boolean };
+type Mode = 'intervalar' | 'pontual';
 
 const populationMeanFields: Field[] = [
   { id: 'sample_mean', label: 'Média amostral (x̄)' },
-  { id: 'sample_size', label: 'Tamanho da amostra (n)' },
-  { id: 'critical_value', label: 'Valor crítico (z)' },
-  { id: 'sample_standard_deviation', label: 'Desvio padrão amostral (s)' },
-  { id: 'population_size', label: 'Tamanho da população (N)' },
+  { id: 'sample_size', label: 'Tamanho da amostra (n)', intervalOnly: true },
+  { id: 'critical_value', label: 'Valor crítico (z)', intervalOnly: true },
+  { id: 'sample_standard_deviation', label: 'Desvio padrão amostral (s)', intervalOnly: true },
+  { id: 'population_size', label: 'Tamanho da população (N)', intervalOnly: true },
 ];
 
 const proportionFields: Field[] = [
   { id: 'sample_proportion', label: 'Proporção amostral (p̂)' },
-  { id: 'sample_size', label: 'Tamanho da amostra (n)' },
-  { id: 'critical_value', label: 'Valor crítico (z)' },
-  { id: 'population_size', label: 'Tamanho da população (N)' },
+  { id: 'sample_size', label: 'Tamanho da amostra (n)', intervalOnly: true },
+  { id: 'critical_value', label: 'Valor crítico (z)', intervalOnly: true },
+  { id: 'population_size', label: 'Tamanho da população (N)', intervalOnly: true },
 ];
 
 const tabs = [
@@ -47,11 +48,21 @@ const triggerClass =
   'px-4 py-2 text-sm font-medium text-gray-500 border-b-2 border-transparent ' +
   'hover:text-gray-900 data-selected:text-gray-900 data-selected:border-gray-900';
 
+const modes: { value: Mode; label: string }[] = [
+  { value: 'intervalar', label: 'Intervalar' },
+  { value: 'pontual', label: 'Pontual' },
+];
+
+const modeButtonClass = (active: boolean) =>
+  'flex-1 rounded px-3 py-1.5 text-sm font-medium ' +
+  (active ? 'bg-primary text-primary-foreground' : 'text-gray-600 hover:text-gray-900');
+
 const format = (n: number) => n.toLocaleString('pt-BR', { maximumFractionDigits: 4 });
 
 export default function Calculator() {
   const [wasm] = createResource(loadWasm);
   const [selectedOption, setSelectedOption] = createSignal('population_mean');
+  const [mode, setMode] = createSignal<Mode>('intervalar');
   const [result, setResult] = createSignal<{ tab: string; lower: number; upper: number; error: number }>();
   async function populationEstimationCalc(e: SubmitEvent) {
     e.preventDefault()
@@ -89,10 +100,25 @@ export default function Calculator() {
       <For each={tabs}>
         {(tab) => (
           <Tabs.Content value={tab.value} forceMount class="hidden pt-6 data-selected:block">
+            <div class="mb-6 flex rounded-md border border-gray-300 p-1">
+              <For each={modes}>
+                {(m) => (
+                  <button
+                    type="button"
+                    class={modeButtonClass(mode() === m.value)}
+                    aria-pressed={mode() === m.value}
+                    onClick={() => setMode(m.value)}
+                  >
+                    {m.label}
+                  </button>
+                )}
+              </For>
+            </div>
+
             <form class="grid gap-4" onSubmit={(e) => populationEstimationCalc(e)}>
               <For each={tab.fields}>
                 {(f) => (
-                  <label class="grid gap-1">
+                  <label class="grid gap-1" classList={{ hidden: f.intervalOnly && mode() === 'pontual' }}>
                     <span class="text-sm font-medium text-gray-700">{f.label}</span>
                     <input
                       id={`${tab.value}_${f.id}`}
