@@ -14,32 +14,46 @@ interface PopulationExports {
   get_upper(): number;
   get_lower(): number;
   get_error(): number;
+  beginProportionEstimation(
+    sample_proportion: number,
+    sample_size: number,
+    items_in_sample: number,
+    critical_value: number,
+    intervalar_pontual: number,
+  ): void;
+  getPonctualProportion(): number;
+  getIntervalProportionLower(): number;
+  getIntervalProportionUpper(): number;
 }
+
+type Result =
+  | { tab: string; kind: 'interval'; symbol: string; lower: number; upper: number; error?: number }
+  | { tab: string; kind: 'point'; symbol: string; value: number };
 
 const loadWasm = async () =>
   (await init()).exports as unknown as PopulationExports;
 
-type Field = { id: string; label: string; intervalOnly?: boolean };
+type Field = { id: string; label: string; intervalOnly?: boolean; pointOnly?: boolean };
 type Mode = 'intervalar' | 'pontual';
 
 const populationMeanFields: Field[] = [
   { id: 'sample_mean', label: 'Média amostral (x̄)' },
-  { id: 'sample_size', label: 'Tamanho da amostra (n)', intervalOnly: true },
-  { id: 'critical_value', label: 'Valor crítico (z)', intervalOnly: true },
-  { id: 'sample_standard_deviation', label: 'Desvio padrão amostral (s)', intervalOnly: true },
-  { id: 'population_size', label: 'Tamanho da população (N)', intervalOnly: true },
+  { id: 'sample_size', label: 'Tamanho da amostra (n)' },
+  { id: 'critical_value', label: 'Valor crítico (z)' },
+  { id: 'sample_standard_deviation', label: 'Desvio padrão amostral (s)' },
+  { id: 'population_size', label: 'Tamanho da população (N)' },
 ];
 
 const proportionFields: Field[] = [
-  { id: 'sample_proportion', label: 'Proporção amostral (p̂)' },
-  { id: 'sample_size', label: 'Tamanho da amostra (n)', intervalOnly: true },
+  { id: 'items_in_sample', label: 'Itens na amostra (x)', pointOnly: true },
+  { id: 'sample_proportion', label: 'Proporção amostral (p̂)', intervalOnly: true },
+  { id: 'sample_size', label: 'Tamanho da amostra (n)' },
   { id: 'critical_value', label: 'Valor crítico (z)', intervalOnly: true },
-  { id: 'population_size', label: 'Tamanho da população (N)', intervalOnly: true },
 ];
 
 const tabs = [
-  { value: 'population_mean', label: 'Estimação da média populacional', fields: populationMeanFields },
-  { value: 'proportion', label: 'Estimativa de proporções', fields: proportionFields },
+  { value: 'population_mean', label: 'Estimação da média populacional', fields: populationMeanFields, hasModes: false },
+  { value: 'proportion', label: 'Estimativa de proporções', fields: proportionFields, hasModes: true },
 ];
 
 
@@ -63,7 +77,7 @@ export default function Calculator() {
   const [wasm] = createResource(loadWasm);
   const [selectedOption, setSelectedOption] = createSignal('population_mean');
   const [mode, setMode] = createSignal<Mode>('intervalar');
-  const [result, setResult] = createSignal<{ tab: string; lower: number; upper: number; error: number }>();
+  const [result, setResult] = createSignal<Result>();
   async function populationEstimationCalc(e: SubmitEvent) {
     e.preventDefault()
     const data = new FormData(e.currentTarget as HTMLFormElement);
@@ -76,8 +90,26 @@ export default function Calculator() {
         const args = populationMeanFields.map((f) => to_number(f.id)) as [number, number, number, number, number];
         w?.beginParameterEstimation(...args);
         if (w) {
-          setResult({ tab: 'population_mean', lower: w.get_lower(), upper: w.get_upper(), error: w.get_error() });
+          setResult({ tab: 'population_mean', kind: 'interval', symbol: 'μ', lower: w.get_lower(), upper: w.get_upper(), error: w.get_error() });
         }
+        break;
+      }
+      case 'proportion': {
+        const w = wasm();
+        if (!w) break;
+        const pontual = mode() === 'pontual';
+        w.beginProportionEstimation(
+          to_number('sample_proportion'),
+          to_number('sample_size'),
+          to_number('items_in_sample'),
+          to_number('critical_value'),
+          pontual ? 0 : 1,
+        );
+        setResult(
+          pontual
+            ? { tab: 'proportion', kind: 'point', symbol: 'p̂', value: w.getPonctualProportion() }
+            : { tab: 'proportion', kind: 'interval', symbol: 'p', lower: w.getIntervalProportionLower(), upper: w.getIntervalProportionUpper() },
+        );
         break;
       }
       default:
@@ -100,6 +132,7 @@ export default function Calculator() {
       <For each={tabs}>
         {(tab) => (
           <Tabs.Content value={tab.value} forceMount class="hidden pt-6 data-selected:block">
+            <Show when={tab.hasModes}>
             <div class="mb-6 flex rounded-md border border-gray-300 p-1">
               <For each={modes}>
                 {(m) => (
@@ -107,18 +140,19 @@ export default function Calculator() {
                     type="button"
                     class={modeButtonClass(mode() === m.value)}
                     aria-pressed={mode() === m.value}
-                    onClick={() => setMode(m.value)}
+                    onClick={() => { setMode(m.value); if (result()?.tab === 'proportion') setResult(undefined); }}
                   >
                     {m.label}
                   </button>
                 )}
               </For>
             </div>
+            </Show>
 
             <form class="grid gap-4" onSubmit={(e) => populationEstimationCalc(e)}>
               <For each={tab.fields}>
                 {(f) => (
-                  <label class="grid gap-1" classList={{ hidden: f.intervalOnly && mode() === 'pontual' }}>
+                  <label class="grid gap-1" classList={{ hidden: tab.hasModes && ((f.intervalOnly && mode() === 'pontual') || (f.pointOnly && mode() === 'intervalar')) }}>
                     <span class="text-sm font-medium text-gray-700">{f.label}</span>
                     <input
                       id={`${tab.value}_${f.id}`}
@@ -139,27 +173,37 @@ export default function Calculator() {
             </form>
 
             <Show when={result()?.tab === tab.value && result()}>
-              {(r) => (
-                <div class="mt-6 grid gap-3">
-                  <p class="rounded-md bg-gray-50 px-4 py-3 text-center font-mono">
-                    {format(r().lower)} ≤ μ ≤ {format(r().upper)}
+              {(r) => {
+                const row = 'flex justify-between rounded-md border border-gray-200 px-4 py-2';
+                const res = r();
+                return res.kind === 'point' ? (
+                  <p class="mt-6 rounded-md bg-gray-50 px-4 py-3 text-center font-mono">
+                    {res.symbol} = {format(res.value)}
                   </p>
-                  <dl class="grid gap-2">
-                    <div class="flex justify-between rounded-md border border-gray-200 px-4 py-2">
-                      <dt class="text-sm text-gray-600">Limite inferior</dt>
-                      <dd class="font-mono">{format(r().lower)}</dd>
-                    </div>
-                    <div class="flex justify-between rounded-md border border-gray-200 px-4 py-2">
-                      <dt class="text-sm text-gray-600">Limite superior</dt>
-                      <dd class="font-mono">{format(r().upper)}</dd>
-                    </div>
-                    <div class="flex justify-between rounded-md border border-gray-200 px-4 py-2">
-                      <dt class="text-sm text-gray-600">Margem de erro (E)</dt>
-                      <dd class="font-mono">{format(r().error)}</dd>
-                    </div>
-                  </dl>
-                </div>
-              )}
+                ) : (
+                  <div class="mt-6 grid gap-3">
+                    <p class="rounded-md bg-gray-50 px-4 py-3 text-center font-mono">
+                      {format(res.lower)} ≤ {res.symbol} ≤ {format(res.upper)}
+                    </p>
+                    <dl class="grid gap-2">
+                      <div class={row}>
+                        <dt class="text-sm text-gray-600">Limite inferior</dt>
+                        <dd class="font-mono">{format(res.lower)}</dd>
+                      </div>
+                      <div class={row}>
+                        <dt class="text-sm text-gray-600">Limite superior</dt>
+                        <dd class="font-mono">{format(res.upper)}</dd>
+                      </div>
+                      <Show when={res.error !== undefined}>
+                        <div class={row}>
+                          <dt class="text-sm text-gray-600">Margem de erro (E)</dt>
+                          <dd class="font-mono">{format(res.error!)}</dd>
+                        </div>
+                      </Show>
+                    </dl>
+                  </div>
+                );
+              }}
             </Show>
           </Tabs.Content>
         )}
