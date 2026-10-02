@@ -1,8 +1,11 @@
 import type { Component } from 'solid-js';
+import Calculator from './components/Calculator';
 
 const App: Component = () => {
   return (
-    <p class="text-4xl text-green-700 text-center py-20">Hello tailwind!</p>
+    <main class="flex justify-center px-4 py-16">
+      <Calculator />
+    </main>
   );
 };
 

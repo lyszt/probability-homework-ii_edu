@@ -1,1 +1,7 @@
 @import 'tailwindcss';
+
+@theme {
+  --color-primary: var(--color-indigo-600);
+  --color-primary-hover: var(--color-indigo-700);
+  --color-primary-foreground: var(--color-white);
+}

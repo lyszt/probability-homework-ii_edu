@@ -13,8 +13,13 @@ typedef struct pop_variables {
     float error_estimate; // first pos second minus
 } PopVariables;
 
+
 void estimate_population_mean(PopVariables* variables);
 void calculate_error_estimate(PopVariables* variables);
 void performParameterEstimation(PopVariables* variables);
- 
+void beginParameterEstimation(float sample_mean, float sample_size, float critical_value, float sample_standard_deviation, float population_size); 
+float get_upper();
+float get_lower();
+float get_error();
+
 #endif

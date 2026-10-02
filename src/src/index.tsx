@@ -2,13 +2,10 @@
 import './index.css';
 import { render } from 'solid-js/web';
 import 'solid-devtools';
-import init from '../wasm/main.wasm?init';
 
 import App from './App';
 
 const root = document.getElementById('root');
-const instance = await init();
-const { main } = instance.exports as any;
 
 if (import.meta.env.DEV && !(root instanceof HTMLElement)) {
   throw new Error(
