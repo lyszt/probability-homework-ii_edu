@@ -19,7 +19,7 @@ void calculate_error_estimate(PopVariables *variables)
 
 void performParameterEstimation(PopVariables *variables)
 {
-    variables->needs_correction = variables->population_size / variables->sample_size > 0.5 ? 1 : 0;
+    variables->needs_correction = variables->sample_size / variables->population_size > 0.5 ? 1 : 0;
     calculate_error_estimate(variables);
     estimate_population_mean(variables);
 }
