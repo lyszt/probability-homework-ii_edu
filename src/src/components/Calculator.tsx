@@ -78,14 +78,25 @@ export default function Calculator() {
   const [selectedOption, setSelectedOption] = createSignal('population_mean');
   const [mode, setMode] = createSignal<Mode>('intervalar');
   const [result, setResult] = createSignal<Result>();
+  const [error, setError] = createSignal<{ tab: string; field: string; message: string }>();
+  const invalid = (tab: string, field: string) => error()?.tab === tab && error()?.field === field;
   async function populationEstimationCalc(e: SubmitEvent) {
     e.preventDefault()
     const data = new FormData(e.currentTarget as HTMLFormElement);
     const to_number = (key: string) => Number(data.get(key));
 
-    console.log(selectedOption())
+    const fail = (tab: string, field: string, message: string) => {
+      setResult(undefined);
+      setError({ tab, field, message });
+    };
+    setError(undefined);
+
     switch (selectedOption()) {
       case 'population_mean': {
+        const n = to_number('sample_size');
+        const N = to_number('population_size');
+        if (n <= 0) return fail('population_mean', 'sample_size', 'Deve ser maior que zero.');
+        if (N <= 1) return fail('population_mean', 'population_size', 'Deve ser maior que 1.');
         const w = wasm();
         const args = populationMeanFields.map((f) => to_number(f.id)) as [number, number, number, number, number];
         w?.beginParameterEstimation(...args);
@@ -95,6 +106,7 @@ export default function Calculator() {
         break;
       }
       case 'proportion': {
+        if (to_number('sample_size') <= 0) return fail('proportion', 'sample_size', 'Deve ser maior que zero.');
         const w = wasm();
         if (!w) break;
         const pontual = mode() === 'pontual';
@@ -160,7 +172,11 @@ export default function Calculator() {
                       type="number"
                       step="any"
                       class="rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900"
+                      classList={{ 'border-red-500': invalid(tab.value, f.id) }}
                     />
+                    <Show when={invalid(tab.value, f.id)}>
+                      <span class="text-sm text-red-600">{error()!.message}</span>
+                    </Show>
                   </label>
                 )}
               </For>
