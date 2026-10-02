@@ -1,2 +1,2 @@
 # probability-homework-ii_edu
-Second probability homework made in Ada and WebAssembly/WebAda
+Second probability homework made in Ada and WebAssembly/AdaWebPack
