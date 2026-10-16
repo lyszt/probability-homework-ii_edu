@@ -16,5 +16,7 @@ typedef struct pair_double {
     double second;
 } PairDouble;
 
+double normal_cdf(double z);
+double critical_value_from_confidence(double confidence_level);
 
 #endif

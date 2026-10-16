@@ -19,19 +19,25 @@ void calculate_error_estimate(PopVariables *variables)
 
 void performParameterEstimation(PopVariables *variables)
 {
+    variables->critical_value = critical_value_from_confidence(variables->confidence_level);
     variables->needs_correction = variables->sample_size / variables->population_size > 0.05 ? 1 : 0;
     calculate_error_estimate(variables);
     estimate_population_mean(variables);
 }
 
-void beginParameterEstimation(double sample_mean, double sample_size, double critical_value, double sample_standard_deviation, double population_size)
+void beginParameterEstimation(double population_size, double sample_size, double sample_mean, double sample_standard_deviation, double confidence_level)
 {
-    result.sample_mean = sample_mean;
-    result.sample_size = sample_size;
-    result.critical_value = critical_value;
-    result.sample_standard_deviation = sample_standard_deviation;
     result.population_size = population_size;
+    result.sample_size = sample_size;
+    result.sample_mean = sample_mean;
+    result.sample_standard_deviation = sample_standard_deviation;
+    result.confidence_level = confidence_level;
     performParameterEstimation(&result);
+}
+
+double get_ponctual()
+{
+    return result.sample_mean;
 }
 
 double get_upper()
@@ -46,4 +52,8 @@ double get_lower()
 double get_error()
 {
     return result.error_estimate;
+}
+double get_critical_value()
+{
+    return result.critical_value;
 }
